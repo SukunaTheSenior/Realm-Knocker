@@ -1,1 +1,62 @@
+using System;
+using System.Threading;
 
+class Program
+{
+    static int playerX = 0;
+    static int playerY = 0;
+    static int rockCooldown = 0;
+    static int teleportCooldown = 0;
+
+    static void Main(string[] args)
+    {
+        Console.WriteLine("Welcome to Realm Knocker RGB!");
+        Console.WriteLine("Controls: WASD to move, Q to throw rocks, E to teleport jump.");
+
+        while (true)
+        {
+            DrawGame();
+            HandleInput();
+            UpdateCooldowns();
+            Thread.Sleep(100); // Slow down the game loop
+        }
+    }
+
+    static void DrawGame()
+    {
+        Console.Clear();
+        Console.WriteLine($"Player Position: ({playerX}, {playerY})");
+        Console.WriteLine($"Rock Cooldown: {rockCooldown} seconds");
+        Console.WriteLine($"Teleport Cooldown: {teleportCooldown} seconds");
+        Console.WriteLine("Press Q to throw rocks, E to teleport jump.");
+    }
+
+    static void HandleInput()
+    {
+        if (Console.KeyAvailable)
+        {
+            var key = Console.ReadKey(true).Key;
+
+            switch (key)
+            {
+                case ConsoleKey.W: // Move Up
+                    playerY++;
+                    break;
+                case ConsoleKey.S: // Move Down
+                    playerY--;
+                    break;
+                case ConsoleKey.A: // Move Left
+                    playerX--;
+                    break;
+                case ConsoleKey.D: // Move Right
+                    playerX++;
+                    break;
+                case ConsoleKey.Q: // Throw Rocks
+                    if (rockCooldown <= 0)
+                    {
+                        ThrowRocks();
+                        rockCooldown = 5; // 5-second cooldown
+                    }
+                    break;
+                case ConsoleKey.E: // Teleport Jump
+                    if (teleportCooldown <=
