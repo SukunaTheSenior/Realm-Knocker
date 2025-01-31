@@ -1,123 +1,87 @@
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
-#include <SFML/System.hpp>
-#include <cmath>
-#include <vector>
-#include <cstdlib>
-#include <ctime>
+import pyglet
+from pyglet.window import key
+import random
 
-// Rock class
-class Rock {
-public:
-    sf::RectangleShape shape;
-    sf::Vector2f velocity;
+# Window setup
+window = pyglet.window.Window(800, 600, caption="Realm Knocker RGB")
+batch = pyglet.graphics.Batch()
 
-    Rock(sf::Vector2f position, sf::Vector2f direction) {
-        shape.setSize(sf::Vector2f(10.f, 10.f));
-        shape.setFillColor(sf::Color::Brown);
-        shape.setPosition(position);
-        velocity = direction * 5.f;
-    }
+# Player setup
+player = pyglet.shapes.Rectangle(400, 300, 50, 50, color=(0, 255, 0), batch=batch)
+player_speed = 300  # Pixels per second
 
-    void update() {
-        shape.move(velocity);
-    }
-};
+# Rock setup
+rocks = []
+rock_cooldown = 0
+rock_cooldown_max = 1  # 1 second cooldown
 
-// Player class
-class Player {
-public:
-    sf::RectangleShape shape;
-    sf::Vector2f position;
-    float teleportRadius = 50.f;
-    int rockCooldown = 0;
-    int teleportCooldown = 0;
+# Teleport setup
+teleport_cooldown = 0
+teleport_cooldown_max = 3  # 3 seconds cooldown
 
-    Player() {
-        shape.setSize(sf::Vector2f(20.f, 20.f));
-        shape.setFillColor(sf::Color::Green);
-        position = sf::Vector2f(400.f, 300.f);
-        shape.setPosition(position);
-    }
+# Key states
+keys = key.KeyStateHandler()
+window.push_handlers(keys)
 
-    void move(sf::Vector2f direction) {
-        position += direction;
-        shape.setPosition(position);
-    }
+def update(dt):
+    global rock_cooldown, teleport_cooldown
 
-    void teleport() {
-        float angle = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2.f * 3.14159f;
-        position.x += std::cos(angle) * teleportRadius;
-        position.y += std::sin(angle) * teleportRadius;
-        shape.setPosition(position);
-    }
+    # Player movement (WASD)
+    if keys[key.W]:
+        player.y += player_speed * dt
+    if keys[key.S]:
+        player.y -= player_speed * dt
+    if keys[key.A]:
+        player.x -= player_speed * dt
+    if keys[key.D]:
+        player.x += player_speed * dt
 
-    void updateCooldowns() {
-        if (rockCooldown > 0) rockCooldown--;
-        if (teleportCooldown > 0) teleportCooldown--;
-    }
-};
+    # Rock throw (Q key)
+    if keys[key.Q] and rock_cooldown <= 0:
+        throw_rocks()
+        rock_cooldown = rock_cooldown_max
 
-int main() {
-    srand(static_cast<unsigned>(time(0)));
+    # Teleport jump (E key)
+    if keys[key.E] and teleport_cooldown <= 0:
+        teleport_jump()
+        teleport_cooldown = teleport_cooldown_max
 
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Realm Knocker RGB");
-    window.setFramerateLimit(60);
+    # Update cooldowns
+    if rock_cooldown > 0:
+        rock_cooldown -= dt
+    if teleport_cooldown > 0:
+        teleport_cooldown -= dt
 
-    Player player;
-    std::vector<Rock> rocks;
+    # Update rocks
+    for rock in rocks:
+        rock.x += rock.dx * dt * 200  # Rock speed
+        rock.y += rock.dy * dt * 200
 
-    while (window.isOpen()) {
-        sf::Event event;
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed)
-                window.close();
-        }
+    # Remove off-screen rocks
+    global rocks
+    rocks = [rock for rock in rocks if 0 <= rock.x <= 800 and 0 <= rock.y <= 600]
 
-        // Player Movement (WASD)
-        sf::Vector2f movement(0.f, 0.f);
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) movement.y -= 1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) movement.y += 1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) movement.x -= 1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) movement.x += 1.f;
-        player.move(movement * 5.f);
+def throw_rocks():
+    # Throw 3 rocks in an upturned triangle pattern
+    directions = [(-0.5, 1), (0, 1), (0.5, 1)]  # Left-up, straight-up, right-up
+    for dx, dy in directions:
+        rock = pyglet.shapes.Rectangle(player.x, player.y, 10, 10, color=(165, 42, 42), batch=batch)
+        rock.dx, rock.dy = dx, dy
+        rocks.append(rock)
 
-        // Rock Throw (Q Key)
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q) && player.rockCooldown <= 0) {
-            rocks.emplace_back(player.position, sf::Vector2f(-0.5f, -1.f)); // Left-up
-            rocks.emplace_back(player.position, sf::Vector2f(0.f, -1.f));   // Straight-up
-            rocks.emplace_back(player.position, sf::Vector2f(0.5f, -1.f));  // Right-up
-            player.rockCooldown = 60; // 1 second cooldown (60 frames)
-        }
+def teleport_jump():
+    # Teleport the player to a random position within a radius
+    radius = 100
+    player.x = random.randint(int(player.x - radius), int(player.x + radius))
+    player.y = random.randint(int(player.y - radius), int(player.y + radius))
 
-        // Teleport Jump (E Key)
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::E) && player.teleportCooldown <= 0) {
-            player.teleport();
-            player.teleportCooldown = 180; // 3 second cooldown (180 frames)
-        }
+@window.event
+def on_draw():
+    window.clear()
+    batch.draw()
 
-        // Update rocks
-        for (auto& rock : rocks) {
-            rock.update();
-        }
+# Schedule updates
+pyglet.clock.schedule_interval(update, 1/60.0)
 
-        // Remove off-screen rocks
-        rocks.erase(std::remove_if(rocks.begin(), rocks.end(), [](const Rock& rock) {
-            return rock.shape.getPosition().x < 0 || rock.shape.getPosition().x > 800 ||
-                   rock.shape.getPosition().y < 0 || rock.shape.getPosition().y > 600;
-        }), rocks.end());
-
-        // Update cooldowns
-        player.updateCooldowns();
-
-        // Rendering
-        window.clear();
-        window.draw(player.shape);
-        for (const auto& rock : rocks) {
-            window.draw(rock.shape);
-        }
-        window.display();
-    }
-
-    return 0;
-}
+# Run the game
+pyglet.app.run()
