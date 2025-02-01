@@ -27,7 +27,15 @@ rock_cooldown_max = 7  # 7 seconds cooldown
 # Enemy setup
 enemies = []
 enemy_spawn_timer = 0
-enemy_spawn_interval = random.randint(5, 15)  # Initialize spawn interval
+enemy_spawn_interval = 5  # Spawn every 5 seconds
+
+# Walls
+walls = [
+    pyglet.shapes.Rectangle(100, 100, 600, 20, color=(100, 100, 100), batch=batch),  # Bottom wall
+    pyglet.shapes.Rectangle(100, 480, 600, 20, color=(100, 100, 100), batch=batch),  # Top wall
+    pyglet.shapes.Rectangle(100, 100, 20, 400, color=(100, 100, 100), batch=batch),  # Left wall
+    pyglet.shapes.Rectangle(680, 100, 20, 400, color=(100, 100, 100), batch=batch),  # Right wall
+]
 
 # Score
 score = 0
@@ -54,13 +62,13 @@ def update(dt):
         if keys[key.D]:
             player.x += player_speed * dt
 
-        # Dash ability (Right Click)
-        if dash_cooldown <= 0 and keys[key.R]:
+        # Dash ability (E key)
+        if dash_cooldown <= 0 and keys[key.E]:
             dash_to_cursor()
             dash_cooldown = dash_cooldown_max
 
-        # Rock throw (Left Click)
-        if rock_cooldown <= 0 and keys[key.L]:
+        # Rock throw (Q key)
+        if rock_cooldown <= 0 and keys[key.Q]:
             throw_rock()
             rock_cooldown = rock_cooldown_max
 
@@ -75,7 +83,6 @@ def update(dt):
         if enemy_spawn_timer >= enemy_spawn_interval:
             spawn_enemy()
             enemy_spawn_timer = 0
-            enemy_spawn_interval = random.randint(5, 15)  # Update spawn interval
 
         # Update enemies
         for enemy in enemies:
@@ -89,6 +96,22 @@ def update(dt):
 
         # Check collisions
         check_collisions()
+
+        # Prevent player from going through walls
+        for wall in walls:
+            if (player.x < wall.x + wall.width and
+                player.x + player.width > wall.x and
+                player.y < wall.y + wall.height and
+                player.y + player.height > wall.y):
+                # Push player out of the wall
+                if player.x < wall.x:
+                    player.x = wall.x - player.width
+                elif player.x + player.width > wall.x + wall.width:
+                    player.x = wall.x + wall.width
+                if player.y < wall.y:
+                    player.y = wall.y - player.height
+                elif player.y + player.height > wall.y + wall.height:
+                    player.y = wall.y + wall.height
 
 def dash_to_cursor():
     global player
@@ -113,17 +136,17 @@ def spawn_enemy():
     # Spawn an enemy at a random edge of the screen
     side = random.choice(["top", "bottom", "left", "right"])
     if side == "top":
-        x = random.randint(0, 800)
-        y = 600
+        x = random.randint(100, 700)
+        y = 480
     elif side == "bottom":
-        x = random.randint(0, 800)
-        y = 0
+        x = random.randint(100, 700)
+        y = 100
     elif side == "left":
-        x = 0
-        y = random.randint(0, 600)
+        x = 100
+        y = random.randint(100, 480)
     elif side == "right":
-        x = 800
-        y = random.randint(0, 600)
+        x = 680
+        y = random.randint(100, 480)
     enemy = Enemy(x, y)
     enemies.append(enemy)
 
@@ -140,6 +163,12 @@ def check_collisions():
                 enemies.remove(enemy)
                 score += 1
                 score_label.text = f"Score: {score}"
+                # Spawn 3 more enemies after a random delay (2-10 seconds)
+                pyglet.clock.schedule_once(lambda dt: spawn_enemy_group(), random.uniform(2, 10))
+
+def spawn_enemy_group():
+    for _ in range(3):
+        spawn_enemy()
 
 @window.event
 def on_draw():
@@ -222,7 +251,7 @@ class Enemy:
             rocks.append(rock)
 
 # Schedule updates
-pyglet.clock.schedule_interval(update, 1/90.0)  # 90 FPS cap
+pyglet.clock.schedule_interval(update, 1/120.0)  # 120 FPS cap
 
 # Run the game
 pyglet.app.run()
