@@ -15,7 +15,6 @@ game_state = MENU
 
 # Player setup
 player = pyglet.shapes.Rectangle(400, 300, 50, 50, color=(255, 255, 0), batch=batch)  # Yellow cube
-wizard_hat = pyglet.shapes.Triangle(425, 350, 400, 400, 375, 350, color=(128, 0, 128), batch=batch)  # Purple hat
 player_speed = 300  # Pixels per second
 dash_cooldown = 0
 dash_cooldown_max = 10  # 10 seconds cooldown
@@ -34,9 +33,6 @@ enemy_spawn_interval = random.randint(5, 15)  # Spawn every 5-15 seconds
 score = 0
 score_label = pyglet.text.Label("Score: 0", x=10, y=580, color=(255, 255, 255, 255), batch=batch)
 
-# Biome setup
-biomes = []
-
 # Key states
 keys = key.KeyStateHandler()
 window.push_handlers(keys)
@@ -51,16 +47,12 @@ def update(dt):
         # Player movement (WASD)
         if keys[key.W]:
             player.y += player_speed * dt
-            wizard_hat.y += player_speed * dt
         if keys[key.S]:
             player.y -= player_speed * dt
-            wizard_hat.y -= player_speed * dt
         if keys[key.A]:
             player.x -= player_speed * dt
-            wizard_hat.x -= player_speed * dt
         if keys[key.D]:
             player.x += player_speed * dt
-            wizard_hat.x += player_speed * dt
 
         # Dash ability (Right Click)
         if dash_cooldown <= 0 and keys[key.R]:
@@ -99,7 +91,7 @@ def update(dt):
         check_collisions()
 
 def dash_to_cursor():
-    global player, wizard_hat
+    global player
     # Move player toward cursor by a small amount (e.g., 50 pixels)
     dx = mouse_x - player.x
     dy = mouse_y - player.y
@@ -107,8 +99,6 @@ def dash_to_cursor():
     if distance > 0:
         player.x += dx / distance * 50
         player.y += dy / distance * 50
-        wizard_hat.x += dx / distance * 50
-        wizard_hat.y += dy / distance * 50
 
 def throw_rock():
     # Throw a rock toward the cursor
@@ -163,17 +153,17 @@ def on_draw():
 def draw_menu():
     # Draw main menu
     title = pyglet.text.Label("Realm Knocker 0.0.1 Beta",
-                              font_name="Pixel", font_size=36,
+                              font_size=36,
                               x=window.width//2, y=window.height//2 + 50,
                               anchor_x="center", anchor_y="center",
                               color=(255, 255, 255, 255))
     play_button = pyglet.text.Label("Play",
-                                    font_name="Pixel", font_size=24,
+                                    font_size=24,
                                     x=window.width//2, y=window.height//2,
                                     anchor_x="center", anchor_y="center",
                                     color=(0, 255, 0, 255))
     quit_button = pyglet.text.Label("Quit",
-                                    font_name="Pixel", font_size=24,
+                                    font_size=24,
                                     x=window.width//2, y=window.height//2 - 50,
                                     anchor_x="center", anchor_y="center",
                                     color=(255, 0, 0, 255))
@@ -195,6 +185,41 @@ def on_mouse_press(x, y, button, modifiers):
 def on_mouse_motion(x, y, dx, dy):
     global mouse_x, mouse_y
     mouse_x, mouse_y = x, y
+
+# Rock class
+class Rock:
+    def __init__(self, x, y, dx, dy):
+        self.shape = pyglet.shapes.Rectangle(x, y, 10, 10, color=(165, 42, 42), batch=batch)
+        self.dx = dx
+        self.dy = dy
+
+    def update(self, dt):
+        self.shape.x += self.dx * dt * 200  # Rock speed
+        self.shape.y += self.dy * dt * 200
+
+# Enemy class
+class Enemy:
+    def __init__(self, x, y):
+        self.shape = pyglet.shapes.Rectangle(x, y, 30, 30, color=(255, 0, 0), batch=batch)
+        self.speed = 100  # Pixels per second
+
+    def update(self, dt):
+        # Move toward the player
+        dx = player.x - self.shape.x
+        dy = player.y - self.shape.y
+        distance = (dx ** 2 + dy ** 2) ** 0.5
+        if distance > 0:
+            self.shape.x += dx / distance * self.speed * dt
+            self.shape.y += dy / distance * self.speed * dt
+
+    def shoot_rock(self):
+        # Shoot a rock toward the player
+        dx = player.x - self.shape.x
+        dy = player.y - self.shape.y
+        distance = (dx ** 2 + dy ** 2) ** 0.5
+        if distance > 0:
+            rock = Rock(self.shape.x, self.shape.y, dx / distance, dy / distance)
+            rocks.append(rock)
 
 # Schedule updates
 pyglet.clock.schedule_interval(update, 1/90.0)  # 90 FPS cap
