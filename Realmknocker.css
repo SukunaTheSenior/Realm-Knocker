@@ -10,6 +10,17 @@ batch = pyglet.graphics.Batch()
 player = pyglet.shapes.Rectangle(400, 300, 50, 50, color=(0, 255, 0), batch=batch)
 player_speed = 300  # Pixels per second
 
+# Rock class
+class Rock:
+    def __init__(self, x, y, dx, dy):
+        self.shape = pyglet.shapes.Rectangle(x, y, 10, 10, color=(165, 42, 42), batch=batch)
+        self.dx = dx
+        self.dy = dy
+
+    def update(self, dt):
+        self.shape.x += self.dx * dt * 200  # Rock speed
+        self.shape.y += self.dy * dt * 200
+
 # Rock setup
 rocks = []
 rock_cooldown = 0
@@ -54,19 +65,17 @@ def update(dt):
 
     # Update rocks
     for rock in rocks:
-        rock.x += rock.dx * dt * 200  # Rock speed
-        rock.y += rock.dy * dt * 200
+        rock.update(dt)
 
     # Remove off-screen rocks
     global rocks
-    rocks = [rock for rock in rocks if 0 <= rock.x <= 800 and 0 <= rock.y <= 600]
+    rocks = [rock for rock in rocks if 0 <= rock.shape.x <= 800 and 0 <= rock.shape.y <= 600]
 
 def throw_rocks():
     # Throw 3 rocks in an upturned triangle pattern
     directions = [(-0.5, 1), (0, 1), (0.5, 1)]  # Left-up, straight-up, right-up
     for dx, dy in directions:
-        rock = pyglet.shapes.Rectangle(player.x, player.y, 10, 10, color=(165, 42, 42), batch=batch)
-        rock.dx, rock.dy = dx, dy
+        rock = Rock(player.x, player.y, dx, dy)
         rocks.append(rock)
 
 def teleport_jump():
