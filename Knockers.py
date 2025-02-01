@@ -1,6 +1,5 @@
 import pyglet
 from pyglet.window import key, mouse
-import random
 
 # Window setup
 window = pyglet.window.Window(600, 400, caption="Realm Knocker RGB")  # Smaller window
@@ -14,36 +13,26 @@ PLAYING = 1
 CREDITS = 2
 game_state = MENU
 
-# Confirmation dialog
-show_confirmation = False
-
 # Player setup
 player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)  # Yellow cube
 player_speed = 300  # Pixels per second
 dash_cooldown = 0
-dash_cooldown_max = 12  # 12 seconds cooldown
+dash_cooldown_max = 10  # 10 seconds cooldown
 
 # Rock setup
 rocks = []
 rock_cooldown = 0
 rock_cooldown_max = 7  # 7 seconds cooldown
-rock_clicks = 0  # Number of rocks shot
-rock_click_limit = 7  # Max rocks before cooldown
-
-# Boomerang cube setup
-boomerang = None
-boomerang_cooldown = 0
-boomerang_cooldown_max = 3  # 3 seconds cooldown
 
 # Key states
 keys = key.KeyStateHandler()
-window.push_handlers(keys)  # Ensure key states are updated
+window.push_handlers(keys)
 
 # Mouse position
 mouse_x, mouse_y = 0, 0
 
 def update(dt):
-    global rock_cooldown, dash_cooldown, rock_clicks, boomerang_cooldown
+    global rock_cooldown, dash_cooldown
 
     if game_state == PLAYING:
         # Player movement (WASD)
@@ -56,49 +45,35 @@ def update(dt):
         if keys[key.D]:
             player.x += player_speed * dt
 
-        # Dash ability (Left Shift)
-        if dash_cooldown <= 0 and keys[key.LSHIFT]:
+        # Dash ability (E key)
+        if dash_cooldown <= 0 and keys[key.E]:
             dash_to_cursor()
             dash_cooldown = dash_cooldown_max
 
-        # Rock throw (Left Click)
-        if rock_clicks < rock_click_limit and rock_cooldown <= 0:
-            if keys[key.L]:
-                throw_rock()
-                rock_clicks += 1
-                if rock_clicks >= rock_click_limit:
-                    rock_cooldown = rock_cooldown_max
-
-        # Boomerang cube (Right Click)
-        if boomerang_cooldown <= 0 and keys[key.R]:
-            shoot_boomerang()
-            boomerang_cooldown = boomerang_cooldown_max
+        # Rock throw (Q key)
+        if rock_cooldown <= 0 and keys[key.Q]:
+            throw_rock()
+            rock_cooldown = rock_cooldown_max
 
         # Update cooldowns
         if rock_cooldown > 0:
             rock_cooldown -= dt
         if dash_cooldown > 0:
             dash_cooldown -= dt
-        if boomerang_cooldown > 0:
-            boomerang_cooldown -= dt
 
         # Update rocks
         for rock in rocks:
             rock.update(dt)
 
-        # Update boomerang
-        if boomerang:
-            boomerang.update(dt)
-
 def dash_to_cursor():
     global player
-    # Move player toward cursor by a fixed distance (e.g., 100 pixels)
+    # Move player toward cursor by a small amount (e.g., 50 pixels)
     dx = mouse_x - player.x
     dy = mouse_y - player.y
     distance = (dx ** 2 + dy ** 2) ** 0.5
     if distance > 0:
-        player.x += dx / distance * 100  # Dash distance
-        player.y += dy / distance * 100
+        player.x += dx / distance * 50
+        player.y += dy / distance * 50
 
 def throw_rock():
     # Throw a rock toward the cursor
@@ -109,15 +84,6 @@ def throw_rock():
         rock = Rock(player.x, player.y, dx / distance, dy / distance)
         rocks.append(rock)
 
-def shoot_boomerang():
-    global boomerang
-    # Shoot a boomerang cube toward the cursor
-    dx = mouse_x - player.x
-    dy = mouse_y - player.y
-    distance = (dx ** 2 + dy ** 2) ** 0.5
-    if distance > 0:
-        boomerang = Boomerang(player.x, player.y, dx / distance, dy / distance)
-
 @window.event
 def on_draw():
     window.clear()
@@ -126,8 +92,6 @@ def on_draw():
     elif game_state == PLAYING:
         batch.draw()
         fps_display.draw()
-        if show_confirmation:
-            draw_confirmation()
     elif game_state == CREDITS:
         draw_credits()
 
@@ -168,7 +132,7 @@ def draw_credits():
                                      multiline=True,
                                      width=400,
                                      align="center")
-    back_button = pyglet.text.Label("Press ESC to go back",
+    back_button = pyglet.text.Label("Back",
                                     font_size=18,
                                     x=window.width//2, y=window.height//2 - 100,
                                     anchor_x="center", anchor_y="center",
@@ -176,41 +140,9 @@ def draw_credits():
     credits_text.draw()
     back_button.draw()
 
-def draw_confirmation():
-    # Draw confirmation dialog
-    dialog = pyglet.shapes.Rectangle(200, 150, 200, 100, color=(50, 50, 50), batch=batch)
-    text = pyglet.text.Label("Do you want to go back to the Main Menu?",
-                             font_size=14,
-                             x=window.width//2, y=window.height//2 + 20,
-                             anchor_x="center", anchor_y="center",
-                             color=(255, 255, 255, 255))
-    yes_button = pyglet.text.Label("Yes",
-                                   font_size=14,
-                                   x=window.width//2 - 50, y=window.height//2 - 20,
-                                   anchor_x="center", anchor_y="center",
-                                   color=(0, 255, 0, 255))
-    no_button = pyglet.text.Label("No",
-                                  font_size=14,
-                                  x=window.width//2 + 50, y=window.height//2 - 20,
-                                  anchor_x="center", anchor_y="center",
-                                  color=(255, 0, 0, 255))
-    dialog.draw()
-    text.draw()
-    yes_button.draw()
-    no_button.draw()
-
-@window.event
-def on_key_press(symbol, modifiers):
-    global game_state, show_confirmation
-    if symbol == key.ESCAPE:
-        if game_state == CREDITS:
-            game_state = MENU
-        elif game_state == PLAYING:
-            show_confirmation = not show_confirmation
-
 @window.event
 def on_mouse_press(x, y, button, modifiers):
-    global game_state, show_confirmation
+    global game_state
     if game_state == MENU:
         if button == mouse.LEFT:
             if 250 <= x <= 350 and 180 <= y <= 220:  # Play button
@@ -219,13 +151,10 @@ def on_mouse_press(x, y, button, modifiers):
                 game_state = CREDITS
             elif 250 <= x <= 350 and 80 <= y <= 120:  # Quit button
                 pyglet.app.exit()
-    elif game_state == PLAYING and show_confirmation:
+    elif game_state == CREDITS:
         if button == mouse.LEFT:
-            if 250 <= x <= 300 and 180 <= y <= 200:  # Yes button
+            if 250 <= x <= 350 and 80 <= y <= 120:  # Back button
                 game_state = MENU
-                show_confirmation = False
-            elif 300 <= x <= 350 and 180 <= y <= 200:  # No button
-                show_confirmation = False
 
 @window.event
 def on_mouse_motion(x, y, dx, dy):
@@ -240,31 +169,8 @@ class Rock:
         self.dy = dy
 
     def update(self, dt):
-        self.shape.x += self.dx * dt * 400  # Faster rocks
-        self.shape.y += self.dy * dt * 400
-
-# Boomerang class
-class Boomerang:
-    def __init__(self, x, y, dx, dy):
-        self.shape = pyglet.shapes.Rectangle(x, y, 20, 20, color=(0, 0, 255), batch=batch)
-        self.dx = dx
-        self.dy = dy
-        self.distance_traveled = 0
-        self.max_distance = 200  # Max distance before returning
-
-    def update(self, dt):
-        if self.distance_traveled < self.max_distance:
-            self.shape.x += self.dx * dt * 300
-            self.shape.y += self.dy * dt * 300
-            self.distance_traveled += dt * 300
-        else:
-            # Return to player
-            dx = player.x - self.shape.x
-            dy = player.y - self.shape.y
-            distance = (dx ** 2 + dy ** 2) ** 0.5
-            if distance > 0:
-                self.shape.x += dx / distance * dt * 300
-                self.shape.y += dy / distance * dt * 300
+        self.shape.x += self.dx * dt * 200  # Rock speed
+        self.shape.y += self.dy * dt * 200
 
 # Schedule updates
 pyglet.clock.schedule_interval(update, 1/120.0)  # 120 FPS cap
