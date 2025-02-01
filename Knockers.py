@@ -61,16 +61,16 @@ def update(dt):
             dash_to_cursor()
             dash_cooldown = dash_cooldown_max
 
-        # Rock throw (Q key)
+        # Rock throw (Left Click)
         if rock_clicks < rock_click_limit and rock_cooldown <= 0:
-            if keys[key.Q]:
+            if keys[key.L]:
                 throw_rock()
                 rock_clicks += 1
                 if rock_clicks >= rock_click_limit:
                     rock_cooldown = rock_cooldown_max
 
-        # Boomerang cube (E key)
-        if boomerang_cooldown <= 0 and keys[key.E]:
+        # Boomerang cube (Right Click)
+        if boomerang_cooldown <= 0 and keys[key.R]:
             shoot_boomerang()
             boomerang_cooldown = boomerang_cooldown_max
 
@@ -261,4 +261,13 @@ class Boomerang:
             # Return to player
             dx = player.x - self.shape.x
             dy = player.y - self.shape.y
-            distance = (dx ** 2 + dy **
+            distance = (dx ** 2 + dy ** 2) ** 0.5
+            if distance > 0:
+                self.shape.x += dx / distance * dt * 300
+                self.shape.y += dy / distance * dt * 300
+
+# Schedule updates
+pyglet.clock.schedule_interval(update, 1/120.0)  # 120 FPS cap
+
+# Run the game
+pyglet.app.run()
