@@ -20,7 +20,7 @@ show_confirmation = False
 # Player setup
 player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)  # Yellow cube
 player_speed = 300  # Pixels per second
-dash_cooldown = 0
+dash_cooldown = 12
 dash_cooldown_max = 12  # 12 seconds cooldown
 dash_charges = 2  # 2 dashes before cooldown
 shift_held_time = 0  # Time Left Shift is held
@@ -28,19 +28,19 @@ max_shift_hold = 5  # Max dash duration (5 seconds)
 
 # Rock setup
 rocks = []
-rock_cooldown = 0
+rock_cooldown = 7
 rock_cooldown_max = 7  # 7 seconds cooldown
 rock_clicks = 0  # Number of rocks shot
 rock_click_limit = 7  # Max rocks before cooldown
 
 # Boomerang cube setup
 boomerang = None
-boomerang_cooldown = 0
+boomerang_cooldown = 3
 boomerang_cooldown_max = 3  # 3 seconds cooldown
 
 # Key states
 keys = key.KeyStateHandler()
-window.push_handlers(keys)
+window.push_handlers(keys)  # Ensure key states are updated
 
 # Mouse position
 mouse_x, mouse_y = 0, 0
