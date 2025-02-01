@@ -27,7 +27,7 @@ rock_cooldown_max = 7  # 7 seconds cooldown
 # Enemy setup
 enemies = []
 enemy_spawn_timer = 0
-enemy_spawn_interval = random.randint(5, 15)  # Spawn every 5-15 seconds
+enemy_spawn_interval = random.randint(5, 15)  # Initialize spawn interval
 
 # Score
 score = 0
@@ -41,7 +41,7 @@ window.push_handlers(keys)
 mouse_x, mouse_y = 0, 0
 
 def update(dt):
-    global rock_cooldown, dash_cooldown, enemy_spawn_timer, score
+    global rock_cooldown, dash_cooldown, enemy_spawn_timer, score, enemy_spawn_interval
 
     if game_state == PLAYING:
         # Player movement (WASD)
@@ -75,7 +75,7 @@ def update(dt):
         if enemy_spawn_timer >= enemy_spawn_interval:
             spawn_enemy()
             enemy_spawn_timer = 0
-            enemy_spawn_interval = random.randint(5, 15)
+            enemy_spawn_interval = random.randint(5, 15)  # Update spawn interval
 
         # Update enemies
         for enemy in enemies:
