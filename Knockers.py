@@ -1,3 +1,4 @@
+
 import pyglet
 from pyglet.window import key, mouse
 
@@ -23,12 +24,12 @@ camera_y = 0
 player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)
 player_speed = 300
 dash_cooldown = 0
-dash_cooldown_max = 6  # Updated dash cooldown to 6 seconds
+dash_cooldown_max = 6  # Updated to 6 seconds
 
 # Rock setup
 rocks = []
 rock_cooldown = 0
-rock_cooldown_max = 3  # Updated rock cooldown to 3 seconds
+rock_cooldown_max = 3  # Updated to 3 seconds
 
 # Wall setup
 walls = [
@@ -92,7 +93,7 @@ def update(dt):
         for rock in rocks:
             rock.update(dt)
 
-        # Update camera position to center the player
+        # Camera follows the player
         camera_x = player.x - window.width // 2 + player.width // 2
         camera_y = player.y - window.height // 2 + player.height // 2
 
@@ -120,7 +121,7 @@ def on_draw():
         draw_menu()
     elif game_state == PLAYING:
         pyglet.gl.glPushMatrix()
-        pyglet.gl.glTranslatef(-camera_x, -camera_y, 0)  # Apply camera translation
+        pyglet.gl.glTranslatef(-camera_x, -camera_y, 0)  # Camera follow
         batch.draw()
         pyglet.gl.glPopMatrix()
         fps_display.draw()
@@ -130,6 +131,60 @@ def on_draw():
         draw_credits()
     elif game_state == RESOLUTION:
         draw_resolution()
+
+def draw_menu():
+    title = pyglet.text.Label("Realm Knocker 0.0.1 Beta",
+        font_size=24, x=window.width//2, y=window.height - 100,
+        anchor_x="center", anchor_y="center", color=(255, 255, 255, 255))
+    
+    buttons = [
+        ("Play", window.height//2 + 50, PLAYING),
+        ("Settings", window.height//2, SETTINGS),
+        ("Quit", window.height//2 - 50, MENU)
+    ]
+
+    for text, y, _ in buttons:
+        label = pyglet.text.Label(text,
+            font_size=18, x=window.width//2, y=y,
+            anchor_x="center", anchor_y="center",
+            color=(0, 255, 0, 255) if text == "Play" else (255, 255, 255, 255))
+        label.draw()
+    
+    title.draw()
+
+def draw_settings():
+    title = pyglet.text.Label("Settings",
+        font_size=24, x=window.width//2, y=window.height - 100,
+        anchor_x="center", anchor_y="center", color=(255, 255, 255, 255))
+    
+    buttons = [
+        ("Resolution", window.height//2 + 50, RESOLUTION),
+        ("Credits", window.height//2, CREDITS),
+        ("Back", window.height//2 - 50, MENU)
+    ]
+
+    for text, y, _ in buttons:
+        label = pyglet.text.Label(text,
+            font_size=18, x=window.width//2, y=y,
+            anchor_x="center", anchor_y="center",
+            color=(255, 255, 255, 255))
+        label.draw()
+    
+    title.draw()
+
+def draw_credits():
+    credits_text = pyglet.text.Label(
+        "Game Developer: TabbyDevelopes on YouTube\nBeta Tester: @Forgetmeh on Discord!",
+        font_size=16, x=window.width//2, y=window.height//2 + 50,
+        anchor_x="center", anchor_y="center", color=(255, 255, 255, 255),
+        multiline=True, width=400, align="center")
+    
+    back_button = pyglet.text.Label("Back",
+        font_size=18, x=window.width//2, y=window.height//2 - 100,
+        anchor_x="center", anchor_y="center", color=(255, 255, 255, 255))
+    
+    credits_text.draw()
+    back_button.draw()
 
 class Rock:
     def __init__(self, x, y, dx, dy):
