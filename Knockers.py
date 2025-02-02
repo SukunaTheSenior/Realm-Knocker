@@ -16,18 +16,19 @@ RESOLUTION = 4
 game_state = MENU
 
 # Camera variables
-camera_x, camera_y = 0, 0
+camera_x = 0
+camera_y = 0
 
 # Player setup
 player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)
 player_speed = 300
 dash_cooldown = 0
-dash_cooldown_max = 6
+dash_cooldown_max = 6  # Updated dash cooldown to 6 seconds
 
 # Rock setup
 rocks = []
 rock_cooldown = 0
-rock_cooldown_max = 3
+rock_cooldown_max = 3  # Updated rock cooldown to 3 seconds
 
 # Wall setup
 walls = [
