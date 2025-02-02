@@ -24,10 +24,10 @@ rocks = []
 rock_cooldown = 0
 rock_cooldown_max = 7  # 7 seconds cooldown
 
-# Red cubes (obstacles)
-red_cubes = [
-    pyglet.shapes.Rectangle(100, 100, 50, 50, color=(255, 0, 0), batch=batch),  # Red cube 1
-    pyglet.shapes.Rectangle(400, 300, 50, 50, color=(255, 0, 0), batch=batch),  # Red cube 2
+# Wall (block) setup
+walls = [
+    pyglet.shapes.Rectangle(100, 100, 50, 50, color=(139, 69, 19), batch=batch),  # Brown block 1
+    pyglet.shapes.Rectangle(400, 300, 50, 50, color=(139, 69, 19), batch=batch),  # Brown block 2
 ]
 
 # Key states
@@ -63,12 +63,12 @@ def update(dt):
         if keys[key.D]:
             player.x += player_speed * dt
 
-        # Check for collisions with red cubes
-        for cube in red_cubes:
-            if check_collision(player, cube):
+        # Check for collisions with walls
+        for wall in walls:
+            if check_collision(player, wall):
                 # Revert to the previous position if there's a collision
                 player.x, player.y = prev_x, prev_y
-                break  # Stop checking other cubes
+                break  # Stop checking other walls
 
         # Dash ability (E key)
         if dash_cooldown <= 0 and keys[key.E]:
