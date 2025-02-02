@@ -20,7 +20,7 @@ game_state = MENU
 player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)
 player_speed = 300
 dash_cooldown = 0
-dash_cooldown_max = 1.5  # Reduced cooldown for better feel
+dash_cooldown_max = 1.5
 
 # Camera setup
 camera_x, camera_y = 0, 0
@@ -28,8 +28,8 @@ camera_x, camera_y = 0, 0
 # Rock setup
 rocks = []
 rock_cooldown = 0
-rock_cooldown_max = 0.8  # Reduced cooldown for click spam
-rock_speed = 400  # Increased rock speed
+rock_cooldown_max = 0.8
+rock_speed = 400
 
 # Wall setup
 walls = [
@@ -40,7 +40,6 @@ walls = [
 # Key states
 keys = key.KeyStateHandler()
 window.push_handlers(keys)
-mouse_pressed = False
 
 # System resolution
 screen = window.display.get_default_screen()
@@ -80,6 +79,11 @@ def update(dt):
             dash_to_cursor()
             dash_cooldown = dash_cooldown_max
 
+        # Throw rock with E key
+        if keys[key.E] and rock_cooldown <= 0:
+            throw_rock()
+            rock_cooldown = rock_cooldown_max
+
         # Collision detection
         for wall in walls:
             if check_collision(player, wall):
@@ -93,12 +97,11 @@ def update(dt):
         # Update rocks
         for rock in rocks[:]:
             rock.update(dt)
-            if rock.distance > 1000:  # Remove distant rocks
+            if rock.distance > 1000:
                 rocks.remove(rock)
 
 def dash_to_cursor():
     global player
-    # Convert screen coordinates to game world coordinates
     target_x = mouse_x + camera_x
     target_y = mouse_y + camera_y
     
@@ -107,11 +110,10 @@ def dash_to_cursor():
     distance = (dx**2 + dy**2)**0.5
     
     if distance > 0:
-        player.x += dx/distance * 80  # Dash distance
+        player.x += dx/distance * 80
         player.y += dy/distance * 80
 
 def throw_rock():
-    # Convert screen coordinates to game world coordinates
     target_x = mouse_x + camera_x
     target_y = mouse_y + camera_y
     
@@ -126,7 +128,6 @@ def throw_rock():
 def on_draw():
     window.clear()
     if game_state == PLAYING:
-        # Camera transformation
         gl.glPushMatrix()
         gl.glTranslatef(-int(camera_x), -int(camera_y), 0)
         batch.draw()
@@ -141,18 +142,7 @@ def on_draw():
     elif game_state == RESOLUTION:
         draw_resolution()
 
-# [Keep all the menu/drawing functions from previous code, only showing key changes below]
-
-@window.event
-def on_mouse_press(x, y, button, modifiers):
-    global game_state, rock_cooldown
-    
-    if game_state == PLAYING and button == mouse.LEFT:
-        if rock_cooldown <= 0:
-            throw_rock()
-            rock_cooldown = rock_cooldown_max
-            
-    # [Keep existing menu click handling]
+# [Keep all menu/drawing functions from previous version]
 
 class Rock:
     def __init__(self, x, y, dx, dy):
