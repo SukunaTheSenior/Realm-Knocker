@@ -1,4 +1,3 @@
-
 import pyglet
 from pyglet.window import key, mouse
 
@@ -16,20 +15,16 @@ CREDITS = 3
 RESOLUTION = 4
 game_state = MENU
 
-# Camera variables
-camera_x = 0
-camera_y = 0
-
 # Player setup
 player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)
 player_speed = 300
 dash_cooldown = 0
-dash_cooldown_max = 6  # Updated to 6 seconds
+dash_cooldown_max = 6  # Changed to 6 seconds
 
 # Rock setup
 rocks = []
 rock_cooldown = 0
-rock_cooldown_max = 3  # Updated to 3 seconds
+rock_cooldown_max = 3  # Changed to 3 seconds
 
 # Wall setup
 walls = [
@@ -58,7 +53,7 @@ def check_collision(player, obstacle):
     )
 
 def update(dt):
-    global rock_cooldown, dash_cooldown, camera_x, camera_y
+    global rock_cooldown, dash_cooldown
 
     if game_state == PLAYING:
         prev_x, prev_y = player.x, player.y
@@ -93,18 +88,14 @@ def update(dt):
         for rock in rocks:
             rock.update(dt)
 
-        # Camera follows the player
-        camera_x = player.x - window.width // 2 + player.width // 2
-        camera_y = player.y - window.height // 2 + player.height // 2
-
 def dash_to_cursor():
     global player
     dx = mouse_x - player.x
     dy = mouse_y - player.y
     distance = (dx ** 2 + dy ** 2) ** 0.5
     if distance > 0:
-        player.x += dx / distance * 50
-        player.y += dy / distance * 50
+        player.x += dx / distance * 100  # Increased dash distance
+        player.y += dy / distance * 100  # Increased dash distance
 
 def throw_rock():
     dx = mouse_x - player.x
@@ -120,10 +111,8 @@ def on_draw():
     if game_state == MENU:
         draw_menu()
     elif game_state == PLAYING:
-        pyglet.gl.glPushMatrix()
-        pyglet.gl.glTranslatef(-camera_x, -camera_y, 0)  # Camera follow
+        # Camera follow
         batch.draw()
-        pyglet.gl.glPopMatrix()
         fps_display.draw()
     elif game_state == SETTINGS:
         draw_settings()
@@ -140,7 +129,7 @@ def draw_menu():
     buttons = [
         ("Play", window.height//2 + 50, PLAYING),
         ("Settings", window.height//2, SETTINGS),
-        ("Quit", window.height//2 - 50, MENU)
+        ("Quit", window.height//2 - 50, MENU)  # Quit will exit the game
     ]
 
     for text, y, _ in buttons:
@@ -172,6 +161,27 @@ def draw_settings():
     
     title.draw()
 
+def draw_resolution():
+    title = pyglet.text.Label("Resolution",
+        font_size=24, x=window.width//2, y=window.height - 100,
+        anchor_x="center", anchor_y="center", color=(255, 255, 255, 255))
+    
+    buttons = [
+        ("800x600", window.height//2 + 100, None),
+        (f"System ({SYSTEM_WIDTH}x{SYSTEM_HEIGHT})", window.height//2 + 50, None),
+        ("Fullscreen", window.height//2, None),
+        ("Back", window.height//2 - 50, SETTINGS)
+    ]
+
+    for text, y, _ in buttons:
+        label = pyglet.text.Label(text,
+            font_size=18, x=window.width//2, y=y,
+            anchor_x="center", anchor_y="center",
+            color=(255, 255, 255, 255))
+        label.draw()
+    
+    title.draw()
+
 def draw_credits():
     credits_text = pyglet.text.Label(
         "Game Developer: TabbyDevelopes on YouTube\nBeta Tester: @Forgetmeh on Discord!",
@@ -186,6 +196,52 @@ def draw_credits():
     credits_text.draw()
     back_button.draw()
 
+@window.event
+def on_mouse_press(x, y, button, modifiers):
+    global game_state
+
+    if button == mouse.LEFT:
+        if game_state == MENU:
+            if is_clicked(x, y, window.height//2 + 50):  # Play
+                game_state = PLAYING
+            elif is_clicked(x, y, window.height//2):  # Settings
+                game_state = SETTINGS
+            elif is_clicked(x, y, window.height//2 - 50):  # Quit
+                pyglet.app.exit()
+
+        elif game_state == SETTINGS:
+            if is_clicked(x, y, window.height//2 + 50):  # Resolution
+                game_state = RESOLUTION
+            elif is_clicked(x, y, window.height//2):  # Credits
+                game_state = CREDITS
+            elif is_clicked(x, y, window.height//2 - 50):  # Back
+                game_state = MENU
+
+        elif game_state == RESOLUTION:
+            if is_clicked(x, y, window.height//2 + 100):  # 800x600
+                window.set_size(800, 600)
+            elif is_clicked(x, y, window.height//2 + 50):  # System resolution
+                window.set_size(SYSTEM_WIDTH, SYSTEM_HEIGHT)
+            elif is_clicked(x, y, window.height//2):  # Fullscreen
+                window.set_fullscreen(not window.fullscreen)
+            elif is_clicked(x, y, window.height//2 - 50):  # Back
+                game_state = SETTINGS
+
+        elif game_state == CREDITS:
+            if is_clicked(x, y, window.height//2 - 100):  # Back
+                game_state = SETTINGS
+
+def is_clicked(x, y, target_y, tolerance=20):
+    return (
+        window.width//2 - 75 <= x <= window.width//2 + 75 and
+        target_y - tolerance <= y <= target_y + tolerance
+    )
+
+@window.event
+def on_mouse_motion(x, y, dx, dy):
+    global mouse_x, mouse_y
+    mouse_x, mouse_y = x, y
+
 class Rock:
     def __init__(self, x, y, dx, dy):
         self.shape = pyglet.shapes.Rectangle(x, y, 10, 10, color=(165, 42, 42), batch=batch)
@@ -195,6 +251,26 @@ class Rock:
     def update(self, dt):
         self.shape.x += self.dx * dt * 200
         self.shape.y += self.dy * dt * 200
+
+# Camera follow
+def center_camera_on_player():
+    window.view = window.view.translate(-player.x + window.width // 2, -player.y + window.height // 2)
+
+@window.event
+def on_draw():
+    window.clear()
+    if game_state == MENU:
+        draw_menu()
+    elif game_state == PLAYING:
+        center_camera_on_player()
+        batch.draw()
+        fps_display.draw()
+    elif game_state == SETTINGS:
+        draw_settings()
+    elif game_state == CREDITS:
+        draw_credits()
+    elif game_state == RESOLUTION:
+        draw_resolution()
 
 pyglet.clock.schedule_interval(update, 1/120.0)
 pyglet.app.run()
