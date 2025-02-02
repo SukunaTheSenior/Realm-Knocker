@@ -24,6 +24,12 @@ rocks = []
 rock_cooldown = 0
 rock_cooldown_max = 7  # 7 seconds cooldown
 
+# Red cubes (obstacles)
+red_cubes = [
+    pyglet.shapes.Rectangle(100, 100, 50, 50, color=(255, 0, 0), batch=batch),  # Red cube 1
+    pyglet.shapes.Rectangle(400, 300, 50, 50, color=(255, 0, 0), batch=batch),  # Red cube 2
+]
+
 # Key states
 keys = key.KeyStateHandler()
 window.push_handlers(keys)
@@ -31,10 +37,22 @@ window.push_handlers(keys)
 # Mouse position
 mouse_x, mouse_y = 0, 0
 
+def check_collision(player, obstacle):
+    """Check if the player collides with an obstacle."""
+    return (
+        player.x < obstacle.x + obstacle.width and
+        player.x + player.width > obstacle.x and
+        player.y < obstacle.y + obstacle.height and
+        player.y + player.height > obstacle.y
+    )
+
 def update(dt):
     global rock_cooldown, dash_cooldown
 
     if game_state == PLAYING:
+        # Store the player's previous position
+        prev_x, prev_y = player.x, player.y
+
         # Player movement (WASD)
         if keys[key.W]:
             player.y += player_speed * dt
@@ -44,6 +62,13 @@ def update(dt):
             player.x -= player_speed * dt
         if keys[key.D]:
             player.x += player_speed * dt
+
+        # Check for collisions with red cubes
+        for cube in red_cubes:
+            if check_collision(player, cube):
+                # Revert to the previous position if there's a collision
+                player.x, player.y = prev_x, prev_y
+                break  # Stop checking other cubes
 
         # Dash ability (E key)
         if dash_cooldown <= 0 and keys[key.E]:
