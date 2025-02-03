@@ -44,6 +44,9 @@ screen = window.display.get_default_screen()
 SYSTEM_WIDTH = screen.width
 SYSTEM_HEIGHT = screen.height
 
+# Camera offset
+camera_x, camera_y = 0, 0
+
 def check_collision(player, obstacle):
     return (
         player.x < obstacle.x + obstacle.width and
@@ -53,7 +56,7 @@ def check_collision(player, obstacle):
     )
 
 def update(dt):
-    global rock_cooldown, dash_cooldown
+    global rock_cooldown, dash_cooldown, camera_x, camera_y
 
     if game_state == PLAYING:
         prev_x, prev_y = player.x, player.y
@@ -88,6 +91,10 @@ def update(dt):
         for rock in rocks:
             rock.update(dt)
 
+        # Update camera to follow player
+        camera_x = window.width // 2 - player.x - player.width // 2
+        camera_y = window.height // 2 - player.y - player.height // 2
+
 def dash_to_cursor():
     global player
     dx = mouse_x - player.x
@@ -111,9 +118,12 @@ def on_draw():
     if game_state == MENU:
         draw_menu()
     elif game_state == PLAYING:
-        # Camera follow
+        # Apply camera transformation
+        pyglet.gl.glPushMatrix()
+        pyglet.gl.glTranslatef(camera_x, camera_y, 0)
         batch.draw()
         fps_display.draw()
+        pyglet.gl.glPopMatrix()
     elif game_state == SETTINGS:
         draw_settings()
     elif game_state == CREDITS:
@@ -251,26 +261,6 @@ class Rock:
     def update(self, dt):
         self.shape.x += self.dx * dt * 200
         self.shape.y += self.dy * dt * 200
-
-# Camera follow
-def center_camera_on_player():
-    window.view = window.view.translate(-player.x + window.width // 2, -player.y + window.height // 2)
-
-@window.event
-def on_draw():
-    window.clear()
-    if game_state == MENU:
-        draw_menu()
-    elif game_state == PLAYING:
-        center_camera_on_player()
-        batch.draw()
-        fps_display.draw()
-    elif game_state == SETTINGS:
-        draw_settings()
-    elif game_state == CREDITS:
-        draw_credits()
-    elif game_state == RESOLUTION:
-        draw_resolution()
 
 pyglet.clock.schedule_interval(update, 1/120.0)
 pyglet.app.run()
