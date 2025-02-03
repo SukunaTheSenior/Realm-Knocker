@@ -8,13 +8,14 @@ batch = pyglet.graphics.Batch()
 fps_display = pyglet.window.FPSDisplay(window)
 fps_display.label.color = (255, 255, 255, 255)
 
+# Keyboard input setup
+keys = key.KeyStateHandler()
+window.push_handlers(keys)
+
 # Game states
 MENU = 0
 PLAYING = 1
-SETTINGS = 2
-CREDITS = 3
-RESOLUTION = 4
-game_state = PLAYING  # Start directly in playing state for testing
+game_state = PLAYING  # Start directly in playing state
 
 # Biome setup
 current_biome = "forest"
@@ -114,10 +115,12 @@ class Rock:
         self.shape.delete()
 
 def check_collision(a, b):
+    a_width = a.width if hasattr(a, 'width') else 10
+    a_height = a.height if hasattr(a, 'height') else 10
     return (a.x < b.x + b.width and
-            a.x + a.width > b.x and
+            a.x + a_width > b.x and
             a.y < b.y + b.height and
-            a.y + a.height > b.y)
+            a.y + a_height > b.y)
 
 def update(dt):
     global rock_cooldown, dash_cooldown, player_health, stun_duration, current_biome
@@ -200,7 +203,10 @@ for _ in range(4):
     enemies.append(Enemy(random.randint(100, 700), random.randint(100, 500), "normal"))
     enemies.append(Enemy(random.randint(100, 700), random.randint(100, 500), "special"))
 
-# Handle keyboard input
-window.push_handlers(keys)
+@window.event
+def on_mouse_motion(x, y, dx, dy):
+    global mouse_x, mouse_y
+    mouse_x, mouse_y = x, y
+
 pyglet.clock.schedule_interval(update, 1/120.0)
 pyglet.app.run()
