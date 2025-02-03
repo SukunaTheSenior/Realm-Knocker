@@ -99,6 +99,108 @@ class Rock:
                 rocks.remove(self)
                 break
 
+# Button class
+class Button:
+    def __init__(self, x, y, width, height, text, action):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.text = text
+        self.action = action
+        self.label = pyglet.text.Label(
+            text,
+            font_name="Arial",
+            font_size=24,
+            x=x + width // 2,
+            y=y + height // 2,
+            anchor_x="center",
+            anchor_y="center",
+            batch=batch,
+        )
+        self.shape = pyglet.shapes.Rectangle(x, y, width, height, color=(100, 100, 100), batch=batch)
+
+    def is_clicked(self, x, y):
+        return (
+            self.x <= x <= self.x + self.width and
+            self.y <= y <= self.y + self.height
+        )
+
+# Define buttons for each screen
+menu_buttons = [
+    Button(window.width // 2 - 100, window.height // 2, 200, 50, "Play", lambda: set_game_state(PLAYING)),
+    Button(window.width // 2 - 100, window.height // 2 - 70, 200, 50, "Settings", lambda: set_game_state(SETTINGS)),
+    Button(window.width // 2 - 100, window.height // 2 - 140, 200, 50, "Credits", lambda: set_game_state(CREDITS)),
+]
+
+settings_buttons = [
+    Button(window.width // 2 - 100, window.height // 2, 200, 50, "Resolution", lambda: set_game_state(RESOLUTION)),
+    Button(window.width // 2 - 100, window.height // 2 - 70, 200, 50, "Back", lambda: set_game_state(MENU)),
+]
+
+credits_buttons = [
+    Button(window.width // 2 - 100, window.height // 2 - 70, 200, 50, "Back", lambda: set_game_state(MENU)),
+]
+
+resolution_buttons = [
+    Button(window.width // 2 - 100, window.height // 2, 200, 50, "800x600", lambda: set_resolution(800, 600)),
+    Button(window.width // 2 - 100, window.height // 2 - 70, 200, 50, "1024x768", lambda: set_resolution(1024, 768)),
+    Button(window.width // 2 - 100, window.height // 2 - 140, 200, 50, "Back", lambda: set_game_state(SETTINGS)),
+]
+
+# Helper function to change game state
+def set_game_state(state):
+    global game_state
+    game_state = state
+
+# Helper function to change resolution
+def set_resolution(width, height):
+    window.set_size(width, height)
+
+# Draw menu function
+def draw_menu():
+    for button in menu_buttons:
+        button.shape.draw()
+        button.label.draw()
+
+# Draw settings function
+def draw_settings():
+    for button in settings_buttons:
+        button.shape.draw()
+        button.label.draw()
+
+# Draw credits function
+def draw_credits():
+    for button in credits_buttons:
+        button.shape.draw()
+        button.label.draw()
+
+# Draw resolution function
+def draw_resolution():
+    for button in resolution_buttons:
+        button.shape.draw()
+        button.label.draw()
+
+# Handle mouse clicks
+@window.event
+def on_mouse_press(x, y, button, modifiers):
+    if game_state == MENU:
+        for btn in menu_buttons:
+            if btn.is_clicked(x, y):
+                btn.action()
+    elif game_state == SETTINGS:
+        for btn in settings_buttons:
+            if btn.is_clicked(x, y):
+                btn.action()
+    elif game_state == CREDITS:
+        for btn in credits_buttons:
+            if btn.is_clicked(x, y):
+                btn.action()
+    elif game_state == RESOLUTION:
+        for btn in resolution_buttons:
+            if btn.is_clicked(x, y):
+                btn.action()
+
 # Update function
 def update(dt):
     global rock_cooldown, dash_cooldown, boost, boost_active, player_speed
@@ -203,9 +305,6 @@ def on_draw():
         draw_credits()
     elif game_state == RESOLUTION:
         draw_resolution()
-
-# Menu and other UI functions (unchanged)
-# (You can copy the existing `draw_menu`, `draw_settings`, etc., functions here)
 
 # Schedule the update function
 pyglet.clock.schedule_interval(update, 1 / 120.0)
