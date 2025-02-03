@@ -8,6 +8,14 @@ batch = pyglet.graphics.Batch()
 fps_display = pyglet.window.FPSDisplay(window)
 fps_display.label.color = (255, 255, 255, 255)
 
+# Game states
+MENU = 0
+PLAYING = 1
+SETTINGS = 2
+CREDITS = 3
+RESOLUTION = 4
+game_state = PLAYING  # Start directly in playing state for testing
+
 # Biome setup
 current_biome = "forest"
 BIOME_COLORS = {
@@ -100,6 +108,11 @@ class Rock:
                 stun_duration = max(stun_duration, 3)
             self.delete()
 
+    def delete(self):
+        if self in rocks:
+            rocks.remove(self)
+        self.shape.delete()
+
 def check_collision(a, b):
     return (a.x < b.x + b.width and
             a.x + a.width > b.x and
@@ -111,29 +124,83 @@ def update(dt):
 
     if game_state == PLAYING:
         current_biome = "void" if player.x > 400 else "forest"
-        window.clear()
         
         if stun_duration <= 0:
-            # Player movement and abilities
-            pass  # Add your movement/combat logic here
+            prev_x, prev_y = player.x, player.y
+            
+            # Movement
+            if keys[key.W]: player.y += player_speed * dt
+            if keys[key.S]: player.y -= player_speed * dt
+            if keys[key.A]: player.x -= player_speed * dt
+            if keys[key.D]: player.x += player_speed * dt
+            
+            # Dash ability
+            if dash_cooldown <= 0 and keys[key.E]:
+                dx = mouse_x - player.x
+                dy = mouse_y - player.y
+                dist = (dx**2 + dy**2)**0.5
+                if dist > 0:
+                    player.x += dx/dist * 100
+                    player.y += dy/dist * 100
+                    dash_cooldown = dash_cooldown_max
+            
+            # Rock throwing
+            if rock_cooldown <= 0 and keys[key.Q]:
+                dx = mouse_x - player.x
+                dy = mouse_y - player.y
+                dist = (dx**2 + dy**2)**0.5
+                if dist > 0:
+                    rock = Rock(
+                        player.x + 25, player.y + 25,
+                        dx/dist, dy/dist,
+                        (255, 255, 0), 10
+                    )
+                    rocks.append(rock)
+                    rock_cooldown = rock_cooldown_max
 
-        # Update all game objects
+        # Update cooldowns
+        stun_duration = max(0, stun_duration - dt)
+        rock_cooldown = max(0, rock_cooldown - dt)
+        dash_cooldown = max(0, dash_cooldown - dt)
+
+        # Update projectiles and enemies
         for rock in rocks[:]:
             rock.update(dt)
         for enemy in enemies:
             enemy.update(dt)
+
+        # Health management
+        if player_health <= 0:
+            player_health = 100
+            player.x, player.y = 300, 200
 
 @window.event
 def on_draw():
     window.clear()
     pyglet.gl.glClearColor(*BIOME_COLORS[current_biome], 255)
     batch.draw()
-    # Add UI drawing here
+    fps_display.draw()
+    
+    # Draw UI
+    health_label = pyglet.text.Label(
+        f"Health: {player_health}",
+        x=10, y=window.height-30,
+        color=(255, 255, 255, 255)
+    )
+    stun_label = pyglet.text.Label(
+        f"Stunned: {stun_duration:.1f}s" if stun_duration > 0 else "",
+        x=10, y=window.height-60,
+        color=(255, 255, 255, 255)
+    )
+    health_label.draw()
+    stun_label.draw()
 
 # Initialize enemies
 for _ in range(4):
     enemies.append(Enemy(random.randint(100, 700), random.randint(100, 500), "normal"))
     enemies.append(Enemy(random.randint(100, 700), random.randint(100, 500), "special"))
 
+# Handle keyboard input
+window.push_handlers(keys)
 pyglet.clock.schedule_interval(update, 1/120.0)
 pyglet.app.run()
