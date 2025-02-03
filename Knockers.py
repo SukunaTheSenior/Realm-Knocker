@@ -1,6 +1,7 @@
 import pyglet
 from pyglet.window import key, mouse
 import random
+import math
 
 # Window setup
 window = pyglet.window.Window(800, 600, caption="Realm Knocker RGB", resizable=True)
@@ -19,6 +20,7 @@ game_state = MENU
 # Player setup
 player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)
 player_speed = 300
+base_speed = player_speed  # Store base speed for resetting
 dash_cooldown = 0
 dash_cooldown_max = 6  # Dash cooldown in seconds
 
@@ -26,11 +28,6 @@ dash_cooldown_max = 6  # Dash cooldown in seconds
 rocks = []
 rock_cooldown = 0
 rock_cooldown_max = 3  # Player rock cooldown in seconds
-
-# Enemy setup
-enemies = []
-enemy_rock_cooldown = 3  # Enemy shoots every 3 seconds
-enemy_respawn_time = 5  # Respawn time after being killed
 
 # Wall setup
 walls = [
@@ -50,6 +47,12 @@ screen = window.display.get_default_screen()
 SYSTEM_WIDTH = screen.width
 SYSTEM_HEIGHT = screen.height
 
+# Boost setup
+boost = None
+boost_spawn_cooldown = 15  # Boost spawns every 15 seconds
+boost_active = False
+boost_duration = 5  # Boost lasts for 5 seconds
+
 # Helper functions
 def check_collision(rect1, rect2):
     return (
@@ -62,63 +65,43 @@ def check_collision(rect1, rect2):
 def distance(x1, y1, x2, y2):
     return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
 
-# Enemy class
-class Enemy:
+# Boost class
+class Boost:
     def __init__(self, x, y):
-        self.shape = pyglet.shapes.Rectangle(x, y, 50, 50, color=(255, 0, 0), batch=batch)
-        self.rock_cooldown = enemy_rock_cooldown
-        self.alive = True
+        # Triangle points: (x1, y1), (x2, y2), (x3, y3)
+        self.shape = pyglet.shapes.Triangle(x, y, x + 20, y - 35, x + 40, y, color=(128, 0, 128), batch=batch)
+        self.active = True
 
-    def update(self, dt):
-        if self.alive:
-            self.rock_cooldown -= dt
-            if self.rock_cooldown <= 0:
-                self.shoot_rock()
-                self.rock_cooldown = enemy_rock_cooldown
-
-    def shoot_rock(self):
-        dx = player.x - self.shape.x
-        dy = player.y - self.shape.y
-        dist = distance(self.shape.x, self.shape.y, player.x, player.y)
-        if dist > 0:
-            rock = Rock(self.shape.x, self.shape.y, dx / dist, dy / dist, is_enemy=True)
-            rocks.append(rock)
-
-    def respawn(self):
-        self.shape.x = random.randint(0, window.width)
-        self.shape.y = random.randint(0, window.height)
-        self.alive = True
+    def check_collision(self, player):
+        # Approximate collision detection for triangle and rectangle
+        return (
+            player.x < self.shape.x2 + 20 and
+            player.x + player.width > self.shape.x1 and
+            player.y < self.shape.y1 and
+            player.y + player.height > self.shape.y2
+        )
 
 # Rock class
 class Rock:
-    def __init__(self, x, y, dx, dy, is_enemy=False):
+    def __init__(self, x, y, dx, dy):
         self.shape = pyglet.shapes.Rectangle(x, y, 10, 10, color=(165, 42, 42), batch=batch)
         self.dx = dx
         self.dy = dy
-        self.is_enemy = is_enemy
 
     def update(self, dt):
         self.shape.x += self.dx * dt * 200
         self.shape.y += self.dy * dt * 200
 
-        # Check collision with player (if enemy rock)
-        if self.is_enemy and check_collision(self.shape, player):
-            self.shape.delete()
-            rocks.remove(self)
-            # Handle player damage (you can add health logic here)
-
-        # Check collision with enemies (if player rock)
-        if not self.is_enemy:
-            for enemy in enemies:
-                if enemy.alive and check_collision(self.shape, enemy.shape):
-                    self.shape.delete()
-                    rocks.remove(self)
-                    enemy.alive = False
-                    pyglet.clock.schedule_once(lambda dt: enemy.respawn(), enemy_respawn_time)
+        # Check collision with walls
+        for wall in walls:
+            if check_collision(self.shape, wall):
+                self.shape.delete()
+                rocks.remove(self)
+                break
 
 # Update function
 def update(dt):
-    global rock_cooldown, dash_cooldown
+    global rock_cooldown, dash_cooldown, boost, boost_active, player_speed
 
     if game_state == PLAYING:
         prev_x, prev_y = player.x, player.y
@@ -153,8 +136,20 @@ def update(dt):
         for rock in rocks:
             rock.update(dt)
 
-        for enemy in enemies:
-            enemy.update(dt)
+        # Boost logic
+        if boost and boost.active:
+            if boost.check_collision(player):
+                boost.shape.delete()
+                boost.active = False
+                boost = None
+                activate_speed_boost()
+
+        # Spawn boost
+        if not boost and not boost_active:
+            boost_spawn_cooldown -= dt
+            if boost_spawn_cooldown <= 0:
+                spawn_boost()
+                boost_spawn_cooldown = 15
 
 def dash_to_cursor():
     global player
@@ -172,6 +167,26 @@ def throw_rock():
     if dist > 0:
         rock = Rock(player.x, player.y, dx / dist, dy / dist)
         rocks.append(rock)
+
+def spawn_boost():
+    global boost
+    # Spawn boost within a radius of the player
+    angle = random.uniform(0, 2 * math.pi)
+    radius = random.uniform(100, 300)  # Spawn within 100-300 pixels of the player
+    x = player.x + radius * math.cos(angle)
+    y = player.y + radius * math.sin(angle)
+    boost = Boost(x, y)
+
+def activate_speed_boost():
+    global player_speed, boost_active
+    player_speed *= 2  # Double player speed
+    boost_active = True
+    pyglet.clock.schedule_once(reset_speed_boost, boost_duration)
+
+def reset_speed_boost(dt):
+    global player_speed, boost_active
+    player_speed = base_speed  # Reset to base speed
+    boost_active = False
 
 # Draw function
 @window.event
@@ -191,11 +206,6 @@ def on_draw():
 
 # Menu and other UI functions (unchanged)
 # (You can copy the existing `draw_menu`, `draw_settings`, etc., functions here)
-
-# Initialize enemies
-for _ in range(3):  # Spawn 3 enemies
-    enemy = Enemy(random.randint(0, window.width), random.randint(0, window.height))
-    enemies.append(enemy)
 
 # Schedule the update function
 pyglet.clock.schedule_interval(update, 1 / 120.0)
