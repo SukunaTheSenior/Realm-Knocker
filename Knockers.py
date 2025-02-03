@@ -120,7 +120,7 @@ def on_draw():
     elif game_state == PLAYING:
         # Apply camera transformation
         pyglet.gl.glPushMatrix()
-        pyglet.gl.glTranslatef(camera_x, camera_y, 0)
+        pyglet.gl.glTranslatef(-camera_x, -camera_y, 0)
         batch.draw()
         fps_display.draw()
         pyglet.gl.glPopMatrix()
