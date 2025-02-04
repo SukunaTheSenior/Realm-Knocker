@@ -1,10 +1,9 @@
 import pyglet
 from pyglet.window import key, mouse
 import random
-import math
 
 # Window setup
-window = pyglet.window.Window(800, 600, caption="Realm Knocker RGB", resizable=True)
+window = pyglet.window.Window(600, 400, caption="Realm Knocker RGB")  # Smaller window
 batch = pyglet.graphics.Batch()
 fps_display = pyglet.window.FPSDisplay(window)
 fps_display.label.color = (255, 255, 255, 255)  # White FPS counter
@@ -12,28 +11,32 @@ fps_display.label.color = (255, 255, 255, 255)  # White FPS counter
 # Game states
 MENU = 0
 PLAYING = 1
-SETTINGS = 2
-CREDITS = 3
-RESOLUTION = 4
+CREDITS = 2
 game_state = MENU
 
+# Confirmation dialog
+show_confirmation = False
+
 # Player setup
-player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)
-player_speed = 300
-base_speed = player_speed  # Store base speed for resetting
+player = pyglet.shapes.Rectangle(300, 200, 50, 50, color=(255, 255, 0), batch=batch)  # Yellow cube
+player_speed = 300  # Pixels per second
 dash_cooldown = 0
-dash_cooldown_max = 6  # Dash cooldown in seconds
+dash_cooldown_max = 12  # 12 seconds cooldown
+dash_charges = 2  # 2 dashes before cooldown
+shift_held_time = 0  # Time Left Shift is held
+max_shift_hold = 5  # Max dash duration (5 seconds)
 
 # Rock setup
 rocks = []
 rock_cooldown = 0
-rock_cooldown_max = 3  # Player rock cooldown in seconds
+rock_cooldown_max = 7  # 7 seconds cooldown
+rock_clicks = 0  # Number of rocks shot
+rock_click_limit = 7  # Max rocks before cooldown
 
-# Wall setup
-walls = [
-    pyglet.shapes.Rectangle(100, 100, 50, 50, color=(139, 69, 19), batch=batch),
-    pyglet.shapes.Rectangle(400, 300, 50, 50, color=(139, 69, 19), batch=batch),
-]
+# Boomerang cube setup
+boomerang = None
+boomerang_cooldown = 0
+boomerang_cooldown_max = 3  # 3 seconds cooldown
 
 # Key states
 keys = key.KeyStateHandler()
@@ -42,172 +45,11 @@ window.push_handlers(keys)
 # Mouse position
 mouse_x, mouse_y = 0, 0
 
-# System resolution
-screen = window.display.get_default_screen()
-SYSTEM_WIDTH = screen.width
-SYSTEM_HEIGHT = screen.height
-
-# Boost setup
-boost = None
-boost_spawn_cooldown = 15  # Boost spawns every 15 seconds
-boost_active = False
-boost_duration = 5  # Boost lasts for 5 seconds
-
-# Helper functions
-def check_collision(rect1, rect2):
-    return (
-        rect1.x < rect2.x + rect2.width and
-        rect1.x + rect1.width > rect2.x and
-        rect1.y < rect2.y + rect2.height and
-        rect1.y + rect1.height > rect2.y
-    )
-
-def distance(x1, y1, x2, y2):
-    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
-
-# Boost class
-class Boost:
-    def __init__(self, x, y):
-        # Triangle points: (x1, y1), (x2, y2), (x3, y3)
-        self.shape = pyglet.shapes.Triangle(x, y, x + 20, y - 35, x + 40, y, color=(128, 0, 128), batch=batch)
-        self.active = True
-
-    def check_collision(self, player):
-        # Approximate collision detection for triangle and rectangle
-        return (
-            player.x < self.shape.x2 + 20 and
-            player.x + player.width > self.shape.x1 and
-            player.y < self.shape.y1 and
-            player.y + player.height > self.shape.y2
-        )
-
-# Rock class
-class Rock:
-    def __init__(self, x, y, dx, dy):
-        self.shape = pyglet.shapes.Rectangle(x, y, 10, 10, color=(165, 42, 42), batch=batch)
-        self.dx = dx
-        self.dy = dy
-
-    def update(self, dt):
-        self.shape.x += self.dx * dt * 200
-        self.shape.y += self.dy * dt * 200
-
-        # Check collision with walls
-        for wall in walls:
-            if check_collision(self.shape, wall):
-                self.shape.delete()
-                rocks.remove(self)
-                break
-
-# Button class
-class Button:
-    def __init__(self, x, y, width, height, text, action):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.text = text
-        self.action = action
-        self.label = pyglet.text.Label(
-            text,
-            font_name="Arial",
-            font_size=24,
-            x=x + width // 2,
-            y=y + height // 2,
-            anchor_x="center",
-            anchor_y="center",
-            batch=batch,
-        )
-        self.shape = pyglet.shapes.Rectangle(x, y, width, height, color=(100, 100, 100), batch=batch)
-
-    def is_clicked(self, x, y):
-        return (
-            self.x <= x <= self.x + self.width and
-            self.y <= y <= self.y + self.height
-        )
-
-# Define buttons for each screen
-menu_buttons = [
-    Button(window.width // 2 - 100, window.height // 2, 200, 50, "Play", lambda: set_game_state(PLAYING)),
-    Button(window.width // 2 - 100, window.height // 2 - 70, 200, 50, "Settings", lambda: set_game_state(SETTINGS)),
-    Button(window.width // 2 - 100, window.height // 2 - 140, 200, 50, "Credits", lambda: set_game_state(CREDITS)),
-]
-
-settings_buttons = [
-    Button(window.width // 2 - 100, window.height // 2, 200, 50, "Resolution", lambda: set_game_state(RESOLUTION)),
-    Button(window.width // 2 - 100, window.height // 2 - 70, 200, 50, "Back", lambda: set_game_state(MENU)),
-]
-
-credits_buttons = [
-    Button(window.width // 2 - 100, window.height // 2 - 70, 200, 50, "Back", lambda: set_game_state(MENU)),
-]
-
-resolution_buttons = [
-    Button(window.width // 2 - 100, window.height // 2, 200, 50, "800x600", lambda: set_resolution(800, 600)),
-    Button(window.width // 2 - 100, window.height // 2 - 70, 200, 50, "1024x768", lambda: set_resolution(1024, 768)),
-    Button(window.width // 2 - 100, window.height // 2 - 140, 200, 50, "Back", lambda: set_game_state(SETTINGS)),
-]
-
-# Helper function to change game state
-def set_game_state(state):
-    global game_state
-    game_state = state
-
-# Helper function to change resolution
-def set_resolution(width, height):
-    window.set_size(width, height)
-
-# Draw menu function
-def draw_menu():
-    for button in menu_buttons:
-        button.shape.draw()
-        button.label.draw()
-
-# Draw settings function
-def draw_settings():
-    for button in settings_buttons:
-        button.shape.draw()
-        button.label.draw()
-
-# Draw credits function
-def draw_credits():
-    for button in credits_buttons:
-        button.shape.draw()
-        button.label.draw()
-
-# Draw resolution function
-def draw_resolution():
-    for button in resolution_buttons:
-        button.shape.draw()
-        button.label.draw()
-
-# Handle mouse clicks
-@window.event
-def on_mouse_press(x, y, button, modifiers):
-    if game_state == MENU:
-        for btn in menu_buttons:
-            if btn.is_clicked(x, y):
-                btn.action()
-    elif game_state == SETTINGS:
-        for btn in settings_buttons:
-            if btn.is_clicked(x, y):
-                btn.action()
-    elif game_state == CREDITS:
-        for btn in credits_buttons:
-            if btn.is_clicked(x, y):
-                btn.action()
-    elif game_state == RESOLUTION:
-        for btn in resolution_buttons:
-            if btn.is_clicked(x, y):
-                btn.action()
-
-# Update function
 def update(dt):
-    global rock_cooldown, dash_cooldown, boost, boost_active, player_speed
+    global rock_cooldown, dash_cooldown, dash_charges, shift_held_time, rock_clicks, boomerang_cooldown
 
     if game_state == PLAYING:
-        prev_x, prev_y = player.x, player.y
-
+        # Player movement (WASD)
         if keys[key.W]:
             player.y += player_speed * dt
         if keys[key.S]:
@@ -217,80 +59,76 @@ def update(dt):
         if keys[key.D]:
             player.x += player_speed * dt
 
-        for wall in walls:
-            if check_collision(player, wall):
-                player.x, player.y = prev_x, prev_y
-                break
+        # Dash ability (Left Shift)
+        if keys[key.LSHIFT]:
+            shift_held_time += dt
+            shift_held_time = min(shift_held_time, max_shift_hold)  # Cap at 5 seconds
+        elif dash_charges > 0 and shift_held_time > 0:
+            dash_to_cursor(shift_held_time)
+            dash_charges -= 1
+            shift_held_time = 0
+            if dash_charges == 0:
+                dash_cooldown = dash_cooldown_max
 
-        if dash_cooldown <= 0 and keys[key.E]:
-            dash_to_cursor()
-            dash_cooldown = dash_cooldown_max
+        # Rock throw (Left Click)
+        if rock_clicks < rock_click_limit and rock_cooldown <= 0:
+            if keys[key.L]:
+                throw_rock()
+                rock_clicks += 1
+                if rock_clicks >= rock_click_limit:
+                    rock_cooldown = rock_cooldown_max
 
-        if rock_cooldown <= 0 and keys[key.Q]:
-            throw_rock()
-            rock_cooldown = rock_cooldown_max
+        # Boomerang cube (Right Click)
+        if boomerang_cooldown <= 0 and keys[key.R]:
+            shoot_boomerang()
+            boomerang_cooldown = boomerang_cooldown_max
 
+        # Update cooldowns
         if rock_cooldown > 0:
             rock_cooldown -= dt
         if dash_cooldown > 0:
             dash_cooldown -= dt
+            if dash_cooldown <= 0:
+                dash_charges = 2  # Reset dash charges
+        if boomerang_cooldown > 0:
+            boomerang_cooldown -= dt
 
+        # Update rocks
         for rock in rocks:
             rock.update(dt)
 
-        # Boost logic
-        if boost and boost.active:
-            if boost.check_collision(player):
-                boost.shape.delete()
-                boost.active = False
-                boost = None
-                activate_speed_boost()
+        # Update boomerang
+        if boomerang:
+            boomerang.update(dt)
 
-        # Spawn boost
-        if not boost and not boost_active:
-            boost_spawn_cooldown -= dt
-            if boost_spawn_cooldown <= 0:
-                spawn_boost()
-                boost_spawn_cooldown = 15
-
-def dash_to_cursor():
+def dash_to_cursor(duration):
     global player
+    # Move player toward cursor based on how long Left Shift was held
     dx = mouse_x - player.x
     dy = mouse_y - player.y
-    dist = distance(player.x, player.y, mouse_x, mouse_y)
-    if dist > 0:
-        player.x += dx / dist * 100  # Dash distance
-        player.y += dy / dist * 100  # Dash distance
+    distance = (dx ** 2 + dy ** 2) ** 0.5
+    if distance > 0:
+        player.x += dx / distance * duration * 100  # Dash distance scales with duration
+        player.y += dy / distance * duration * 100
 
 def throw_rock():
+    # Throw a rock toward the cursor
     dx = mouse_x - player.x
     dy = mouse_y - player.y
-    dist = distance(player.x, player.y, mouse_x, mouse_y)
-    if dist > 0:
-        rock = Rock(player.x, player.y, dx / dist, dy / dist)
+    distance = (dx ** 2 + dy ** 2) ** 0.5
+    if distance > 0:
+        rock = Rock(player.x, player.y, dx / distance, dy / distance)
         rocks.append(rock)
 
-def spawn_boost():
-    global boost
-    # Spawn boost within a radius of the player
-    angle = random.uniform(0, 2 * math.pi)
-    radius = random.uniform(100, 300)  # Spawn within 100-300 pixels of the player
-    x = player.x + radius * math.cos(angle)
-    y = player.y + radius * math.sin(angle)
-    boost = Boost(x, y)
+def shoot_boomerang():
+    global boomerang
+    # Shoot a boomerang cube toward the cursor
+    dx = mouse_x - player.x
+    dy = mouse_y - player.y
+    distance = (dx ** 2 + dy ** 2) ** 0.5
+    if distance > 0:
+        boomerang = Boomerang(player.x, player.y, dx / distance, dy / distance)
 
-def activate_speed_boost():
-    global player_speed, boost_active
-    player_speed *= 2  # Double player speed
-    boost_active = True
-    pyglet.clock.schedule_once(reset_speed_boost, boost_duration)
-
-def reset_speed_boost(dt):
-    global player_speed, boost_active
-    player_speed = base_speed  # Reset to base speed
-    boost_active = False
-
-# Draw function
 @window.event
 def on_draw():
     window.clear()
@@ -299,15 +137,148 @@ def on_draw():
     elif game_state == PLAYING:
         batch.draw()
         fps_display.draw()
-    elif game_state == SETTINGS:
-        draw_settings()
+        if show_confirmation:
+            draw_confirmation()
     elif game_state == CREDITS:
         draw_credits()
-    elif game_state == RESOLUTION:
-        draw_resolution()
 
-# Schedule the update function
-pyglet.clock.schedule_interval(update, 1 / 120.0)
+def draw_menu():
+    # Draw main menu
+    title = pyglet.text.Label("Realm Knocker 0.0.1 Beta",
+                              font_size=24,
+                              x=window.width//2, y=window.height//2 + 50,
+                              anchor_x="center", anchor_y="center",
+                              color=(255, 255, 255, 255))
+    play_button = pyglet.text.Label("Play",
+                                    font_size=18,
+                                    x=window.width//2, y=window.height//2,
+                                    anchor_x="center", anchor_y="center",
+                                    color=(0, 255, 0, 255))
+    credits_button = pyglet.text.Label("Credits",
+                                       font_size=18,
+                                       x=window.width//2, y=window.height//2 - 50,
+                                       anchor_x="center", anchor_y="center",
+                                       color=(0, 0, 255, 255))
+    quit_button = pyglet.text.Label("Quit",
+                                    font_size=18,
+                                    x=window.width//2, y=window.height//2 - 100,
+                                    anchor_x="center", anchor_y="center",
+                                    color=(255, 0, 0, 255))
+    title.draw()
+    play_button.draw()
+    credits_button.draw()
+    quit_button.draw()
+
+def draw_credits():
+    # Draw credits screen
+    credits_text = pyglet.text.Label("Game Developer: TabbyDevelopes on YouTube\nBeta Tester: @Forgetmeh on Discord!",
+                                     font_size=16,
+                                     x=window.width//2, y=window.height//2,
+                                     anchor_x="center", anchor_y="center",
+                                     color=(255, 255, 255, 255),
+                                     multiline=True,
+                                     width=400,
+                                     align="center")
+    back_button = pyglet.text.Label("Press ESC to go back",
+                                    font_size=18,
+                                    x=window.width//2, y=window.height//2 - 100,
+                                    anchor_x="center", anchor_y="center",
+                                    color=(255, 255, 255, 255))
+    credits_text.draw()
+    back_button.draw()
+
+def draw_confirmation():
+    # Draw confirmation dialog
+    dialog = pyglet.shapes.Rectangle(200, 150, 200, 100, color=(50, 50, 50), batch=batch)
+    text = pyglet.text.Label("Do you want to go back to the Main Menu?",
+                             font_size=14,
+                             x=window.width//2, y=window.height//2 + 20,
+                             anchor_x="center", anchor_y="center",
+                             color=(255, 255, 255, 255))
+    yes_button = pyglet.text.Label("Yes",
+                                   font_size=14,
+                                   x=window.width//2 - 50, y=window.height//2 - 20,
+                                   anchor_x="center", anchor_y="center",
+                                   color=(0, 255, 0, 255))
+    no_button = pyglet.text.Label("No",
+                                  font_size=14,
+                                  x=window.width//2 + 50, y=window.height//2 - 20,
+                                  anchor_x="center", anchor_y="center",
+                                  color=(255, 0, 0, 255))
+    dialog.draw()
+    text.draw()
+    yes_button.draw()
+    no_button.draw()
+
+@window.event
+def on_key_press(symbol, modifiers):
+    global game_state, show_confirmation
+    if symbol == key.ESCAPE:
+        if game_state == CREDITS:
+            game_state = MENU
+        elif game_state == PLAYING:
+            show_confirmation = not show_confirmation
+
+@window.event
+def on_mouse_press(x, y, button, modifiers):
+    global game_state, show_confirmation
+    if game_state == MENU:
+        if button == mouse.LEFT:
+            if 250 <= x <= 350 and 180 <= y <= 220:  # Play button
+                game_state = PLAYING
+            elif 250 <= x <= 350 and 130 <= y <= 170:  # Credits button
+                game_state = CREDITS
+            elif 250 <= x <= 350 and 80 <= y <= 120:  # Quit button
+                pyglet.app.exit()
+    elif game_state == PLAYING and show_confirmation:
+        if button == mouse.LEFT:
+            if 250 <= x <= 300 and 180 <= y <= 200:  # Yes button
+                game_state = MENU
+                show_confirmation = False
+            elif 300 <= x <= 350 and 180 <= y <= 200:  # No button
+                show_confirmation = False
+
+@window.event
+def on_mouse_motion(x, y, dx, dy):
+    global mouse_x, mouse_y
+    mouse_x, mouse_y = x, y
+
+# Rock class
+class Rock:
+    def __init__(self, x, y, dx, dy):
+        self.shape = pyglet.shapes.Rectangle(x, y, 10, 10, color=(165, 42, 42), batch=batch)
+        self.dx = dx
+        self.dy = dy
+
+    def update(self, dt):
+        self.shape.x += self.dx * dt * 400  # Faster rocks
+        self.shape.y += self.dy * dt * 400
+
+# Boomerang class
+class Boomerang:
+    def __init__(self, x, y, dx, dy):
+        self.shape = pyglet.shapes.Rectangle(x, y, 20, 20, color=(0, 0, 255), batch=batch)
+        self.dx = dx
+        self.dy = dy
+        self.distance_traveled = 0
+        self.max_distance = 200  # Max distance before returning
+
+    def update(self, dt):
+        if self.distance_traveled < self.max_distance:
+            self.shape.x += self.dx * dt * 300
+            self.shape.y += self.dy * dt * 300
+            self.distance_traveled += dt * 300
+        else:
+            # Return to player
+            dx = player.x - self.shape.x
+            dy = player.y - self.shape.y
+            distance = (dx ** 2 + dy ** 2) ** 0.5
+            if distance > 0:
+                self.shape.x += dx / distance * dt * 300
+                self.shape.y += dy / distance * dt * 300
+
+# Schedule updates
+pyglet.clock.schedule_interval(update, 1/120.0)  # 120 FPS cap
 
 # Run the game
 pyglet.app.run()
